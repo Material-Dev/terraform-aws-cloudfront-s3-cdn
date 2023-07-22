@@ -91,10 +91,22 @@ data "template_file" "default" {
   }
 }
 
+resource "aws_s3_bucket_public_access_block" "origin" {
+  count                   = var.override_origin_bucket_policy ? 1 : 0
+  bucket = local.bucket
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
 resource "aws_s3_bucket_policy" "default" {
   count  = ! local.using_existing_origin || var.override_origin_bucket_policy ? 1 : 0
   bucket = local.bucket
   policy = data.template_file.default.rendered
+
+  # Don't modify this bucket in two ways at the same time, S3 API will complain.
+  depends_on = [aws_s3_bucket_public_access_block.origin]
 }
 
 resource "aws_s3_bucket" "origin" {
